@@ -107,7 +107,7 @@ body {
 .next-level-button { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); }
 .retry-level-button { margin-top: 12px; background: linear-gradient(135deg, #7c8cff 0%, #5b6df9 100%); }
 .next-level-button[hidden], .retry-level-button[hidden] { display: none; }
-.level-description { display: grid; gap: 6px; margin-bottom: 16px; }
+.level-description { display: none; }
 .level-hint,.level-rule { margin: 0; font-size: 15px; line-height: 1.45; }
 .level-rule { color: #5b6df9; font-weight: 700; }
 @media (max-width: 1180px) {
