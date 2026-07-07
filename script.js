@@ -11,8 +11,8 @@ const PROGRESS_STORAGE_KEY = 'conditionsTrainerProgressV1';
 const DEBUG_UNLOCK_KEY = 'conditionsTrainerUnlockAll';
 
 const levels = [
-  { start: [4, 3], direction: 'right', pickup: [4, 4], pickupCargo: 'green', greenBox: [4, 4], redBox: null, hint: 'Возьми зелёную деталь и доставь её в зелёный ящик.' },
-  { start: [4, 6], direction: 'left', pickup: [4, 5], pickupCargo: 'red', greenBox: null, redBox: [4, 5], hint: 'Возьми красную деталь и доставь её в красный ящик.' },
+  { start: [4, 3], direction: 'right', pickup: [4, 4], pickupCargo: 'green', greenBox: [3, 5], redBox: null, hint: 'Возьми зелёную деталь и доставь её в зелёный финишный ящик.' },
+  { start: [4, 6], direction: 'left', pickup: [4, 5], pickupCargo: 'red', greenBox: null, redBox: [4, 3], hint: 'Возьми красную деталь и доставь её в красный финишный ящик.' },
   { start: [3, 2], direction: 'right', pickup: [3, 3], greenBox: [1, 5], redBox: [3, 6], hint: 'Зелёная деталь лежит выше, красная — дальше по дороге.' },
   { start: [1, 2], direction: 'right', pickup: [1, 3], greenBox: [1, 5], redBox: [7, 4], hint: 'Одна ветка короткая, другая ведёт вниз по длинной дороге.' },
   { start: [7, 5], direction: 'up', pickup: [6, 5], greenBox: [2, 4], redBox: [4, 6], hint: 'На развилке доставь деталь в ящик её цвета.' },
@@ -48,6 +48,7 @@ let currentCargo = null;
 let isProgramRunning = false;
 let completedLevels = Array(levels.length).fill(false);
 let deliveredCargo = null;
+let pickupTaken = false;
 
 const defineBlocksWithJsonArray = Blockly.common?.defineBlocksWithJsonArray ?? Blockly.defineBlocksWithJsonArray;
 defineBlocksWithJsonArray([
@@ -92,7 +93,7 @@ function renderBoard() {
   for (let row = 0; row < GRID_SIZE; row += 1) {
     for (let col = 0; col < GRID_SIZE; col += 1) {
       const cell = document.createElement('div'); cell.className = 'cell';
-      if (sameCell([row, col], level.pickup) && !currentCargo) {
+      if (sameCell([row, col], level.pickup) && !pickupTaken) {
         if (level.pickupCargo) {
           const pickupBox = document.createElement('div'); pickupBox.className = `delivery-box ${level.pickupCargo}`; pickupBox.style.backgroundImage = `url('./${boxAssets[level.pickupCargo]}')`; cell.appendChild(pickupBox);
         } else {
@@ -106,7 +107,7 @@ function renderBoard() {
   }
   levelTitle.textContent = getLevelName(currentLevelIndex); levelProgress.textContent = `${currentLevelIndex + 1} / ${levels.length}`; levelHint.textContent = level.hint; levelRule.textContent = currentLevelIndex < 2 ? 'Команды: движение, повороты, цикл, взять груз и положить груз.' : 'Команды: движение, повороты, цикл, условие по цвету, взять груз и положить груз.'; renderLevelOptions();
 }
-function resetLevelState() { const level = getCurrentLevel(); currentPosition = [...level.start]; currentDirection = level.direction; currentCargo = null; deliveredCargo = null; renderBoard(); }
+function resetLevelState() { const level = getCurrentLevel(); currentPosition = [...level.start]; currentDirection = level.direction; currentCargo = null; deliveredCargo = null; pickupTaken = false; renderBoard(); }
 function setLevel(index) { if (index < 0 || index >= levels.length || !isLevelUnlocked(index)) { renderLevelOptions(); return; } currentLevelIndex = index; workspace.updateToolbox(getToolboxForLevel()); hideLevelCompleteModal(); resetWorkspace(); resetLevelState(); }
 
 function commandsFromBlock(block) { const commands = []; let currentBlock = block; while (currentBlock) { const type = currentBlock.type; if (type === 'maze_move_forward') commands.push({ type: 'move' }); else if (type === 'maze_turn_left') commands.push({ type: 'turn-left' }); else if (type === 'maze_turn_right') commands.push({ type: 'turn-right' }); else if (type === 'maze_take_cargo') commands.push({ type: 'take' }); else if (type === 'maze_drop_cargo') commands.push({ type: 'drop' }); else if (type === 'maze_repeat') commands.push({ type: 'repeat', times: Number(currentBlock.getFieldValue('TIMES')) || 0, body: commandsFromBlock(currentBlock.getInputTargetBlock('DO')) }); else if (type === 'maze_if_color') commands.push({ type: 'if', color: currentBlock.getFieldValue('COLOR'), thenBranch: commandsFromBlock(currentBlock.getInputTargetBlock('THEN')), elseBranch: commandsFromBlock(currentBlock.getInputTargetBlock('ELSE')) }); currentBlock = currentBlock.getNextBlock(); } return commands; }
@@ -118,7 +119,7 @@ function hideLevelCompleteModal() { levelCompleteModal.classList.add('hidden'); 
 function fail(message, title = 'Ошибка') { showLevelCompleteModal(message, false, title); throw new Error(message); }
 function checkWin() { const level = getCurrentLevel(); if (!deliveredCargo) return false; return (deliveredCargo === 'green' && Array.isArray(level.greenBox) && sameCell(currentPosition, level.greenBox)) || (deliveredCargo === 'red' && Array.isArray(level.redBox) && sameCell(currentPosition, level.redBox)); }
 async function pauseAndRender() { renderBoard(); await new Promise((resolve) => setTimeout(resolve, STEP_DELAY)); }
-async function executeCommands(commands) { for (const command of commands) { if (command.type === 'repeat') { for (let i = 0; i < command.times; i += 1) await executeCommands(command.body); continue; } if (command.type === 'if') { await executeCommands(currentCargo === command.color ? command.thenBranch : command.elseBranch); continue; } await pauseAndRender(); const level = getCurrentLevel(); if (command.type === 'move') { const [dr, dc] = directionVectors[currentDirection]; const nextPos = [currentPosition[0] + dr, currentPosition[1] + dc]; if (!isInsideBoard(nextPos)) fail('Робот вышел за границы поля 9×9. Попробуй снова.'); currentPosition = nextPos; } else if (command.type === 'turn-left' || command.type === 'turn-right') currentDirection = rotateDirection(currentDirection, command.type); else if (command.type === 'take') { if (!sameCell(currentPosition, level.pickup)) fail('Груз можно взять только из коробочки с деталью.'); if (currentCargo) fail('У робота уже есть груз.'); currentCargo = level.pickupCargo ?? (Math.random() < 0.5 ? 'green' : 'red'); } else if (command.type === 'drop') { if (!currentCargo) fail('У робота нет груза, который можно положить.'); deliveredCargo = currentCargo; currentCargo = null; } renderBoard(); } }
+async function executeCommands(commands) { for (const command of commands) { if (command.type === 'repeat') { for (let i = 0; i < command.times; i += 1) await executeCommands(command.body); continue; } if (command.type === 'if') { await executeCommands(currentCargo === command.color ? command.thenBranch : command.elseBranch); continue; } await pauseAndRender(); const level = getCurrentLevel(); if (command.type === 'move') { const [dr, dc] = directionVectors[currentDirection]; const nextPos = [currentPosition[0] + dr, currentPosition[1] + dc]; if (!isInsideBoard(nextPos)) fail('Робот вышел за границы поля 9×9. Попробуй снова.'); currentPosition = nextPos; } else if (command.type === 'turn-left' || command.type === 'turn-right') currentDirection = rotateDirection(currentDirection, command.type); else if (command.type === 'take') { if (!sameCell(currentPosition, level.pickup)) fail('Груз можно взять только из коробочки с деталью.'); if (pickupTaken) fail('Коробочка с деталью уже пуста.'); if (currentCargo) fail('У робота уже есть груз.'); pickupTaken = true; currentCargo = level.pickupCargo ?? (Math.random() < 0.5 ? 'green' : 'red'); } else if (command.type === 'drop') { if (!currentCargo) fail('У робота нет груза, который можно положить.'); deliveredCargo = currentCargo; currentCargo = null; } renderBoard(); } }
 async function runProgram() { if (isProgramRunning) return; const commands = getExecutionTree(); resetLevelState(); if (!commands.length) return; isProgramRunning = true; runButton.disabled = true; try { await executeCommands(commands); if (!checkWin()) { showLevelCompleteModal('Груз нужно положить в коробочку такого же цвета.', false, 'Почти!'); return; } markLevelCompleted(currentLevelIndex); renderLevelOptions(); showLevelCompleteModal('Деталь доставлена в правильную коробочку!', currentLevelIndex < levels.length - 1 && isLevelUnlocked(currentLevelIndex + 1), 'Победа!'); } catch (error) { if (!levelCompleteModal.classList.contains('hidden')) return; showLevelCompleteModal(error.message, false, 'Ошибка'); } finally { isProgramRunning = false; runButton.disabled = false; } }
 
 runButton.addEventListener('click', runProgram);
