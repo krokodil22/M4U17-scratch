@@ -6,6 +6,8 @@ const directionVectors = { up: [-1, 0], right: [0, 1], down: [1, 0], left: [0, -
 const directionRotation = { up: 0, right: 90, down: 180, left: -90 };
 const cargoAssets = { none: 'robo.svg', green: 'robogreen.svg', red: 'robored.svg' };
 const boxAssets = { green: 'greenbox.svg', red: 'redbox.svg' };
+const BACKGROUND_FILL = '#ffd58c';
+const levelPathCells = new Map();
 
 const PROGRESS_STORAGE_KEY = 'conditionsTrainerProgressV1';
 const DEBUG_UNLOCK_KEY = 'conditionsTrainerUnlockAll';
@@ -73,6 +75,52 @@ function getBlocklyStartScale() { return window.innerHeight <= 680 ? 0.82 : 0.95
 function initializeBlockly() { workspace = Blockly.inject(workspaceContainer, { toolbox: getToolboxForLevel(), toolboxPosition: 'start', trashcan: true, renderer: 'zelos', grid: { spacing: 24, length: 3, colour: 'rgba(124, 140, 255, 0.18)', snap: true }, zoom: { controls: true, wheel: true, startScale: getBlocklyStartScale(), maxScale: 1.4, minScale: 0.55, scaleSpeed: 1.1 }, move: { scrollbars: true, drag: true, wheel: true } }); resetWorkspace(); requestAnimationFrame(() => Blockly.svgResize(workspace)); window.addEventListener('resize', () => Blockly.svgResize(workspace)); }
 function toKey(row, col) { return `${row},${col}`; }
 function sameCell(a, b) { return a[0] === b[0] && a[1] === b[1]; }
+function normalizeHexColor(color) { return color?.trim().toLowerCase(); }
+function getSvgClassFills(svgDocument) {
+  const fills = new Map();
+  svgDocument.querySelectorAll('style').forEach((styleNode) => {
+    const styleText = styleNode.textContent ?? '';
+    for (const match of styleText.matchAll(/\.([\w-]+)\s*\{[^}]*fill\s*:\s*(#[0-9a-fA-F]{3,6})/g)) {
+      fills.set(match[1], normalizeHexColor(match[2]));
+    }
+  });
+  return fills;
+}
+function getRectFill(rect, classFills) {
+  const directFill = rect.getAttribute('fill');
+  if (directFill) return normalizeHexColor(directFill);
+  const className = rect.getAttribute('class')?.split(/\s+/).find((name) => classFills.has(name));
+  return className ? classFills.get(className) : null;
+}
+async function loadLevelPath(levelIndex) {
+  if (levelPathCells.has(levelIndex)) return levelPathCells.get(levelIndex);
+  const response = await fetch(`./lvl${levelIndex + 1}.svg`);
+  if (!response.ok) throw new Error(`Не удалось загрузить путь уровня ${levelIndex + 1}.`);
+  const svgText = await response.text();
+  const svgDocument = new DOMParser().parseFromString(svgText, 'image/svg+xml');
+  const classFills = getSvgClassFills(svgDocument);
+  const [viewMinX, viewMinY, viewWidth, viewHeight] = (svgDocument.documentElement.getAttribute('viewBox') ?? '0 0 400 400').split(/\s+/).map(Number);
+  const cellWidth = viewWidth / GRID_SIZE;
+  const cellHeight = viewHeight / GRID_SIZE;
+  const path = new Set();
+  svgDocument.querySelectorAll('rect').forEach((rect) => {
+    const fill = getRectFill(rect, classFills);
+    if (!fill || fill === BACKGROUND_FILL) return;
+    const x = Number(rect.getAttribute('x') ?? viewMinX);
+    const y = Number(rect.getAttribute('y') ?? viewMinY);
+    const width = Number(rect.getAttribute('width') ?? 0);
+    const height = Number(rect.getAttribute('height') ?? 0);
+    const col = Math.floor((x + width / 2 - viewMinX) / cellWidth);
+    const row = Math.floor((y + height / 2 - viewMinY) / cellHeight);
+    if (isInsideBoard([row, col])) path.add(toKey(row, col));
+  });
+  levelPathCells.set(levelIndex, path);
+  return path;
+}
+async function isCellOnLevelPath(cell) {
+  const path = await loadLevelPath(currentLevelIndex);
+  return path.has(toKey(cell[0], cell[1]));
+}
 function loadProgress() { try { const raw = localStorage.getItem(PROGRESS_STORAGE_KEY); if (!raw) return; const parsed = JSON.parse(raw); if (Array.isArray(parsed?.completedLevels)) completedLevels = levels.map((_, idx) => Boolean(parsed.completedLevels[idx])); } catch { completedLevels = Array(levels.length).fill(false); } }
 function saveProgress() { localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify({ completedLevels })); }
 function isLevelUnlocked(index) { if (localStorage.getItem(DEBUG_UNLOCK_KEY) === '1') return true; return index === 0 || completedLevels.slice(0, index).every(Boolean); }
@@ -119,7 +167,7 @@ function hideLevelCompleteModal() { levelCompleteModal.classList.add('hidden'); 
 function fail(message, title = 'Ошибка') { showLevelCompleteModal(message, false, title); throw new Error(message); }
 function checkWin() { const level = getCurrentLevel(); if (!deliveredCargo) return false; return (deliveredCargo === 'green' && Array.isArray(level.greenBox) && sameCell(currentPosition, level.greenBox)) || (deliveredCargo === 'red' && Array.isArray(level.redBox) && sameCell(currentPosition, level.redBox)); }
 async function pauseAndRender() { renderBoard(); await new Promise((resolve) => setTimeout(resolve, STEP_DELAY)); }
-async function executeCommands(commands) { for (const command of commands) { if (command.type === 'repeat') { for (let i = 0; i < command.times; i += 1) await executeCommands(command.body); continue; } if (command.type === 'if') { await executeCommands(currentCargo === command.color ? command.thenBranch : command.elseBranch); continue; } await pauseAndRender(); const level = getCurrentLevel(); if (command.type === 'move') { const [dr, dc] = directionVectors[currentDirection]; const nextPos = [currentPosition[0] + dr, currentPosition[1] + dc]; if (!isInsideBoard(nextPos)) fail('Робот вышел за границы поля 9×9. Попробуй снова.'); currentPosition = nextPos; } else if (command.type === 'turn-left' || command.type === 'turn-right') currentDirection = rotateDirection(currentDirection, command.type); else if (command.type === 'take') { if (!sameCell(currentPosition, level.pickup)) fail('Груз можно взять только из коробочки с деталью.'); if (pickupTaken) fail('Коробочка с деталью уже пуста.'); if (currentCargo) fail('У робота уже есть груз.'); pickupTaken = true; currentCargo = level.pickupCargo ?? (Math.random() < 0.5 ? 'green' : 'red'); } else if (command.type === 'drop') { if (!currentCargo) fail('У робота нет груза, который можно положить.'); deliveredCargo = currentCargo; currentCargo = null; } renderBoard(); } }
+async function executeCommands(commands) { await loadLevelPath(currentLevelIndex); for (const command of commands) { if (command.type === 'repeat') { for (let i = 0; i < command.times; i += 1) await executeCommands(command.body); continue; } if (command.type === 'if') { await executeCommands(currentCargo === command.color ? command.thenBranch : command.elseBranch); continue; } await pauseAndRender(); const level = getCurrentLevel(); if (command.type === 'move') { const [dr, dc] = directionVectors[currentDirection]; const nextPos = [currentPosition[0] + dr, currentPosition[1] + dc]; if (!isInsideBoard(nextPos)) fail('Робот вышел за границы поля 9×9. Попробуй снова.'); if (!(await isCellOnLevelPath(nextPos))) fail('Робот сошёл с нарисованной оранжевой дорожки. Попробуй снова.'); currentPosition = nextPos; } else if (command.type === 'turn-left' || command.type === 'turn-right') currentDirection = rotateDirection(currentDirection, command.type); else if (command.type === 'take') { if (!sameCell(currentPosition, level.pickup)) fail('Груз можно взять только из коробочки с деталью.'); if (pickupTaken) fail('Коробочка с деталью уже пуста.'); if (currentCargo) fail('У робота уже есть груз.'); pickupTaken = true; currentCargo = level.pickupCargo ?? (Math.random() < 0.5 ? 'green' : 'red'); } else if (command.type === 'drop') { if (!currentCargo) fail('У робота нет груза, который можно положить.'); deliveredCargo = currentCargo; currentCargo = null; } renderBoard(); } }
 async function runProgram() { if (isProgramRunning) return; const commands = getExecutionTree(); resetLevelState(); if (!commands.length) return; isProgramRunning = true; runButton.disabled = true; try { await executeCommands(commands); if (!checkWin()) { showLevelCompleteModal('Груз нужно положить в коробочку такого же цвета.', false, 'Почти!'); return; } markLevelCompleted(currentLevelIndex); renderLevelOptions(); showLevelCompleteModal('Деталь доставлена в правильную коробочку!', currentLevelIndex < levels.length - 1 && isLevelUnlocked(currentLevelIndex + 1), 'Победа!'); } catch (error) { if (!levelCompleteModal.classList.contains('hidden')) return; showLevelCompleteModal(error.message, false, 'Ошибка'); } finally { isProgramRunning = false; runButton.disabled = false; } }
 
 runButton.addEventListener('click', runProgram);
