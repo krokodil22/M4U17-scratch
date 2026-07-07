@@ -1,45 +1,30 @@
-const GRID_SIZE = 8;
+const GRID_SIZE = 9;
+const STEP_DELAY = 300;
 
 const directionOrder = ['up', 'right', 'down', 'left'];
-const directionVectors = {
-  up: [-1, 0],
-  right: [0, 1],
-  down: [1, 0],
-  left: [0, -1],
-};
-const directionRotation = { up: 0, right: 90, down: 180, left: 270 };
+const directionVectors = { up: [-1, 0], right: [0, 1], down: [1, 0], left: [0, -1] };
+const directionRotation = { up: -90, right: 0, down: 90, left: 180 };
+const cargoAssets = { none: 'robo.svg', green: 'robogreen.svg', red: 'robored.svg' };
+const boxAssets = { green: 'greenbox.svg', red: 'redbox.svg' };
 
-const objectAssets = {
-  sun: 'sun_bat.svg',
-  patch: 'patch.svg',
-  air: 'air.svg',
-};
-
-const PROGRESS_STORAGE_KEY = 'mazeProgressV1';
-const DEBUG_UNLOCK_KEY = 'mazeDebugUnlockAll';
+const PROGRESS_STORAGE_KEY = 'conditionsTrainerProgressV1';
+const DEBUG_UNLOCK_KEY = 'conditionsTrainerUnlockAll';
 
 const levels = [
-  { start: [3, 1], targets: [{ row: 3, col: 5, type: 'sun' }], minCommands: 5 },
-  { start: [2, 1], targets: [{ row: 5, col: 5, type: 'sun' }], minCommands: 6 },
-  { start: [1, 2], targets: [{ row: 2, col: 2, type: 'patch' }, { row: 3, col: 2, type: 'patch' }, { row: 4, col: 2, type: 'patch' }, { row: 5, col: 2, type: 'patch' }], minCommands: 4 },
-  { start: [1, 2], targets: [{ row: 1, col: 3, type: 'patch' }, { row: 1, col: 4, type: 'patch' }, { row: 2, col: 4, type: 'air' }, { row: 3, col: 4, type: 'air' }, { row: 4, col: 4, type: 'air' }], minCommands: 8 },
-  { start: [6, 2], targets: [{ row: 2, col: 5, type: 'sun' }, { row: 3, col: 5, type: 'sun' }, { row: 4, col: 5, type: 'sun' }, { row: 5, col: 5, type: 'sun' }, { row: 6, col: 5, type: 'patch' }], minCommands: 7 },
-  { start: [1, 2], targets: [{ row: 2, col: 2, type: 'patch' }, { row: 3, col: 2, type: 'air' }, { row: 4, col: 2, type: 'patch' }, { row: 5, col: 2, type: 'air' }, { row: 6, col: 2, type: 'patch' }, { row: 7, col: 2, type: 'air' }], minCommands: 6 },
-  { start: [3, 1], targets: [{ row: 3, col: 2, type: 'sun' }, { row: 3, col: 3, type: 'patch' }, { row: 3, col: 4, type: 'air' }], minCommands: 6 },
-  { start: [3, 1], targets: [{ row: 3, col: 2, type: 'sun' }, { row: 3, col: 3, type: 'patch' }, { row: 3, col: 4, type: 'air' }, { row: 3, col: 5, type: 'sun' }, { row: 3, col: 6, type: 'patch' }, { row: 3, col: 7, type: 'air' }], minCommands: 7 },
-  { start: [6, 1], targets: [{ row: 4, col: 3, type: 'sun' }, { row: 4, col: 4, type: 'patch' }, { row: 4, col: 5, type: 'air' }, { row: 5, col: 1, type: 'sun' }, { row: 5, col: 2, type: 'patch' }, { row: 5, col: 3, type: 'air' }], minCommands: 9 },
-  { start: [6, 3], targets: [{ row: 0, col: 3, type: 'patch' }, { row: 2, col: 3, type: 'patch' }, { row: 4, col: 3, type: 'patch' }], minCommands: 5 },
-  { start: [1, 1], targets: [{ row: 1, col: 5, type: 'air' }, { row: 5, col: 1, type: 'air' }, { row: 5, col: 5, type: 'air' }], minCommands: 5 },
-  { start: [2, 1], targets: [{ row: 2, col: 2, type: 'air' }, { row: 2, col: 3, type: 'sun' }, { row: 3, col: 2, type: 'air' }, { row: 3, col: 3, type: 'sun' }, { row: 4, col: 2, type: 'air' }, { row: 4, col: 3, type: 'sun' }, { row: 5, col: 2, type: 'air' }, { row: 5, col: 3, type: 'sun' }], minCommands: 11 },
-  { start: [2, 1], targets: [{ row: 2, col: 2, type: 'air' }, { row: 2, col: 3, type: 'sun' }, { row: 2, col: 4, type: 'air' }, { row: 2, col: 5, type: 'sun' }, { row: 3, col: 2, type: 'air' }, { row: 3, col: 3, type: 'sun' }, { row: 3, col: 4, type: 'air' }, { row: 3, col: 5, type: 'sun' }, { row: 4, col: 2, type: 'air' }, { row: 4, col: 3, type: 'sun' }, { row: 4, col: 4, type: 'air' }, { row: 4, col: 5, type: 'sun' }, { row: 5, col: 2, type: 'air' }, { row: 5, col: 3, type: 'sun' }, { row: 5, col: 4, type: 'air' }, { row: 5, col: 5, type: 'sun' }], minCommands: 13 },
-  { start: [1, 1], targets: [{ row: 1, col: 2, type: 'sun' }, { row: 1, col: 3, type: 'air' }, { row: 1, col: 4, type: 'patch' }, { row: 2, col: 1, type: 'patch' }, { row: 2, col: 5, type: 'sun' }, { row: 3, col: 1, type: 'air' }, { row: 3, col: 5, type: 'air' }, { row: 4, col: 1, type: 'sun' }, { row: 4, col: 5, type: 'patch' }, { row: 5, col: 2, type: 'patch' }, { row: 5, col: 3, type: 'air' }, { row: 5, col: 4, type: 'sun' }], minCommands: 9 },
-  { start: [1, 1], targets: [{ row: 1, col: 2, type: 'sun' }, { row: 1, col: 3, type: 'air' }, { row: 1, col: 4, type: 'patch' }, { row: 2, col: 2, type: 'patch' }, { row: 2, col: 3, type: 'air' }, { row: 2, col: 4, type: 'sun' }, { row: 3, col: 2, type: 'sun' }, { row: 3, col: 3, type: 'air' }, { row: 3, col: 4, type: 'patch' }, { row: 4, col: 2, type: 'patch' }, { row: 4, col: 3, type: 'air' }, { row: 4, col: 4, type: 'sun' }], minCommands: 15 },
+  { start: [4, 3], direction: 'right', pickup: [4, 4], greenBox: [3, 5], redBox: [4, 5], hint: 'Возьми деталь из загадочной коробочки и выбери нужный ящик на первой развилке.' },
+  { start: [4, 6], direction: 'left', pickup: [4, 5], greenBox: [3, 3], redBox: [4, 3], hint: 'После получения детали поверни к зелёному или красному ящику.' },
+  { start: [3, 2], direction: 'right', pickup: [3, 3], greenBox: [1, 5], redBox: [3, 6], hint: 'Зелёная деталь лежит выше, красная — дальше по дороге.' },
+  { start: [1, 2], direction: 'right', pickup: [1, 3], greenBox: [1, 5], redBox: [7, 4], hint: 'Одна ветка короткая, другая ведёт вниз по длинной дороге.' },
+  { start: [7, 5], direction: 'up', pickup: [6, 5], greenBox: [2, 4], redBox: [4, 6], hint: 'На развилке доставь деталь в ящик её цвета.' },
+  { start: [5, 3], direction: 'up', pickup: [4, 3], greenBox: [2, 1], redBox: [2, 7], hint: 'Используй условие, чтобы выбрать левую или правую верхнюю ветку.' },
+  { start: [1, 7], direction: 'down', pickup: [2, 7], greenBox: [2, 3], redBox: [7, 2], hint: 'Зелёный путь уходит влево сверху, красный — к нижней коробке.' },
+  { start: [3, 1], direction: 'right', pickup: [3, 2], greenBox: [1, 4], redBox: [5, 7], hint: 'Разные цвета требуют разных маршрутов по длинной дорожке.' },
+  { start: [5, 1], direction: 'right', pickup: [5, 2], greenBox: [1, 7], redBox: [7, 7], hint: 'Довези деталь к верхнему или нижнему правому ящику.' },
+  { start: [1, 4], direction: 'down', pickup: [2, 4], greenBox: [3, 1], redBox: [7, 7], hint: 'Зелёный ящик слева, красный — в дальнем правом углу.' },
+  { start: [3, 7], direction: 'left', pickup: [3, 6], greenBox: [2, 1], redBox: [4, 5], hint: 'Финальный уровень: проверь оба варианта условия.' },
 ];
 
-function getLevelName(levelIndex) {
-  if (levelIndex < 9) return `Уровень ${levelIndex + 1}`;
-  return `Доп.задание ${levelIndex - 8}`;
-}
+function getLevelName(levelIndex) { return `Уровень ${levelIndex + 1}`; }
 
 const board = document.getElementById('board');
 const levelTitle = document.getElementById('level-title');
@@ -59,354 +44,75 @@ let workspace;
 let currentLevelIndex = 0;
 let currentPosition = [0, 0];
 let currentDirection = 'right';
+let currentCargo = null;
 let isProgramRunning = false;
-let placedObjects = new Map();
 let completedLevels = Array(levels.length).fill(false);
+let deliveredCargo = null;
 
 const defineBlocksWithJsonArray = Blockly.common?.defineBlocksWithJsonArray ?? Blockly.defineBlocksWithJsonArray;
-
 defineBlocksWithJsonArray([
   { type: 'maze_start', message0: 'Запуск', nextStatement: null, colour: 45, deletable: false, movable: false, hat: 'cap' },
   { type: 'maze_move_forward', message0: 'Шаг вперед', previousStatement: null, nextStatement: null, colour: 340 },
   { type: 'maze_turn_left', message0: 'Повернуть налево', previousStatement: null, nextStatement: null, colour: 340 },
   { type: 'maze_turn_right', message0: 'Повернуть направо', previousStatement: null, nextStatement: null, colour: 340 },
-  {
-    type: 'maze_repeat',
-    message0: 'Повторить %1 раз %2 %3',
-    args0: [
-      { type: 'field_number', name: 'TIMES', value: 2, min: 1, precision: 1 },
-      { type: 'input_dummy' },
-      { type: 'input_statement', name: 'DO' },
-    ],
-    previousStatement: null,
-    nextStatement: null,
-    colour: 200,
-  },
-  { type: 'maze_place_sun', message0: 'Поставить солнечную батарею', previousStatement: null, nextStatement: null, colour: 120 },
-  { type: 'maze_place_patch', message0: 'Поставить заплатку', previousStatement: null, nextStatement: null, colour: 120 },
-  { type: 'maze_place_air', message0: 'Поставить баллон с воздухом', previousStatement: null, nextStatement: null, colour: 120 },
+  { type: 'maze_take_cargo', message0: 'Взять груз', previousStatement: null, nextStatement: null, colour: 120 },
+  { type: 'maze_drop_cargo', message0: 'Положить груз', previousStatement: null, nextStatement: null, colour: 120 },
+  { type: 'maze_repeat', message0: 'Повторить %1 раз %2 %3', args0: [{ type: 'field_number', name: 'TIMES', value: 2, min: 1, precision: 1 }, { type: 'input_dummy' }, { type: 'input_statement', name: 'DO' }], previousStatement: null, nextStatement: null, colour: 200 },
+  { type: 'maze_if_color', message0: 'Если %1, то %2 %3 иначе %4 %5', args0: [{ type: 'field_dropdown', name: 'COLOR', options: [['красный', 'red'], ['зелёный', 'green']] }, { type: 'input_dummy' }, { type: 'input_statement', name: 'THEN' }, { type: 'input_dummy' }, { type: 'input_statement', name: 'ELSE' }], previousStatement: null, nextStatement: null, colour: 260 },
 ]);
 
-function getCurrentLevel() {
-  return levels[currentLevelIndex];
-}
-
-function getToolboxForLevel(levelIndex) {
-  const contents = [
-    { kind: 'block', type: 'maze_repeat', fields: { TIMES: 2 } },
-    { kind: 'block', type: 'maze_move_forward' },
-    { kind: 'block', type: 'maze_turn_left' },
-    { kind: 'block', type: 'maze_turn_right' },
-  ];
-
-  if (levelIndex >= 0) contents.push({ kind: 'block', type: 'maze_place_sun' });
-  if (levelIndex >= 2) contents.push({ kind: 'block', type: 'maze_place_patch' });
-  if (levelIndex >= 3) contents.push({ kind: 'block', type: 'maze_place_air' });
-
-  return { kind: 'flyoutToolbox', contents };
-}
-
-function resetWorkspace() {
-  workspace.clear();
-  const startBlock = workspace.newBlock('maze_start');
-  startBlock.initSvg();
-  startBlock.render();
-  startBlock.moveBy(36, 36);
-  workspace.centerOnBlock(startBlock.id);
-}
-
-function initializeBlockly() {
-  workspace = Blockly.inject(workspaceContainer, {
-    toolbox: getToolboxForLevel(currentLevelIndex),
-    toolboxPosition: 'start',
-    trashcan: true,
-    renderer: 'zelos',
-    grid: { spacing: 24, length: 3, colour: 'rgba(124, 140, 255, 0.18)', snap: true },
-    zoom: { controls: true, wheel: true, startScale: 0.95, maxScale: 1.4, minScale: 0.7, scaleSpeed: 1.1 },
-    move: { scrollbars: true, drag: true, wheel: true },
-  });
-
-  resetWorkspace();
-  requestAnimationFrame(() => Blockly.svgResize(workspace));
-  window.addEventListener('resize', () => Blockly.svgResize(workspace));
-}
-
-function toKey(row, col) {
-  return `${row},${col}`;
-}
-
-function loadProgress() {
-  try {
-    const raw = localStorage.getItem(PROGRESS_STORAGE_KEY);
-    if (!raw) return;
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed?.completedLevels)) return;
-    completedLevels = levels.map((_, idx) => Boolean(parsed.completedLevels[idx]));
-  } catch {
-    completedLevels = Array(levels.length).fill(false);
-  }
-}
-
-function saveProgress() {
-  localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify({ completedLevels }));
-}
-
-function isLevelUnlocked(index) {
-  if (localStorage.getItem(DEBUG_UNLOCK_KEY) === '1') return true;
-  if (index === 0) return true;
-  for (let idx = 0; idx < index; idx += 1) {
-    if (!completedLevels[idx]) return false;
-  }
-  return true;
-}
-
-function renderLevelOptions() {
-  levelSelect.innerHTML = levels.map((_, idx) => {
-    const isLocked = !isLevelUnlocked(idx);
-    const completeIcon = completedLevels[idx] ? '✅ ' : '';
-    const lockIcon = isLocked ? '🔒 ' : '';
-    return (
-      `<option value="${idx}" ${idx === currentLevelIndex ? 'selected' : ''} ${isLocked ? 'disabled' : ''}>${lockIcon}${completeIcon}${getLevelName(idx)}</option>`
-    );
-  }).join('');
-}
-
-function markLevelCompleted(levelIndex) {
-  if (completedLevels[levelIndex]) return;
-  completedLevels[levelIndex] = true;
-  saveProgress();
-}
-
-function getHighestUnlockedLevel() {
-  for (let idx = 1; idx < levels.length; idx += 1) {
-    if (!isLevelUnlocked(idx)) return idx - 1;
-  }
-  return levels.length - 1;
-}
-
-function syncCurrentLevelWithProgress() {
-  const highestUnlocked = getHighestUnlockedLevel();
-  if (currentLevelIndex > highestUnlocked) currentLevelIndex = highestUnlocked;
-}
+function getCurrentLevel() { return levels[currentLevelIndex]; }
+function getToolboxForLevel() { return { kind: 'flyoutToolbox', contents: ['maze_move_forward', 'maze_turn_left', 'maze_turn_right', 'maze_repeat', 'maze_if_color', 'maze_take_cargo', 'maze_drop_cargo'].map((type) => ({ kind: 'block', type })) }; }
+function resetWorkspace() { workspace.clear(); const startBlock = workspace.newBlock('maze_start'); startBlock.initSvg(); startBlock.render(); startBlock.moveBy(36, 36); workspace.centerOnBlock(startBlock.id); }
+function initializeBlockly() { workspace = Blockly.inject(workspaceContainer, { toolbox: getToolboxForLevel(), toolboxPosition: 'start', trashcan: true, renderer: 'zelos', grid: { spacing: 24, length: 3, colour: 'rgba(124, 140, 255, 0.18)', snap: true }, zoom: { controls: true, wheel: true, startScale: 0.95, maxScale: 1.4, minScale: 0.7, scaleSpeed: 1.1 }, move: { scrollbars: true, drag: true, wheel: true } }); resetWorkspace(); requestAnimationFrame(() => Blockly.svgResize(workspace)); window.addEventListener('resize', () => Blockly.svgResize(workspace)); }
+function toKey(row, col) { return `${row},${col}`; }
+function sameCell(a, b) { return a[0] === b[0] && a[1] === b[1]; }
+function loadProgress() { try { const raw = localStorage.getItem(PROGRESS_STORAGE_KEY); if (!raw) return; const parsed = JSON.parse(raw); if (Array.isArray(parsed?.completedLevels)) completedLevels = levels.map((_, idx) => Boolean(parsed.completedLevels[idx])); } catch { completedLevels = Array(levels.length).fill(false); } }
+function saveProgress() { localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify({ completedLevels })); }
+function isLevelUnlocked(index) { if (localStorage.getItem(DEBUG_UNLOCK_KEY) === '1') return true; return index === 0 || completedLevels.slice(0, index).every(Boolean); }
+function renderLevelOptions() { levelSelect.innerHTML = levels.map((_, idx) => `<option value="${idx}" ${idx === currentLevelIndex ? 'selected' : ''} ${isLevelUnlocked(idx) ? '' : 'disabled'}>${isLevelUnlocked(idx) ? '' : '🔒 '}${completedLevels[idx] ? '✅ ' : ''}${getLevelName(idx)}</option>`).join(''); }
+function markLevelCompleted(levelIndex) { if (!completedLevels[levelIndex]) { completedLevels[levelIndex] = true; saveProgress(); } }
+function syncCurrentLevelWithProgress() { const locked = levels.findIndex((_, idx) => !isLevelUnlocked(idx)); if (locked !== -1 && currentLevelIndex >= locked) currentLevelIndex = Math.max(0, locked - 1); }
 
 function renderBoard() {
   const level = getCurrentLevel();
-  const targetMap = new Map(level.targets.map((target) => [toKey(target.row, target.col), target.type]));
-
   board.style.gridTemplateColumns = `repeat(${GRID_SIZE}, minmax(0, 1fr))`;
   board.style.gridTemplateRows = `repeat(${GRID_SIZE}, minmax(0, 1fr))`;
   board.innerHTML = '';
-
   const boardBackground = document.createElement('div');
   boardBackground.className = 'board-background';
-  boardBackground.style.backgroundImage = "url('./Back.svg')";
+  boardBackground.style.backgroundImage = `url('./lvl${currentLevelIndex + 1}.svg')`;
   board.appendChild(boardBackground);
-
   for (let row = 0; row < GRID_SIZE; row += 1) {
     for (let col = 0; col < GRID_SIZE; col += 1) {
-      const key = toKey(row, col);
-      const cell = document.createElement('div');
-      cell.className = 'cell';
-
-      const ghostType = targetMap.get(key);
-      if (ghostType) {
-        const ghost = document.createElement('div');
-        ghost.className = `object ghost ${ghostType}`;
-        ghost.style.backgroundImage = `url('./${objectAssets[ghostType]}')`;
-        cell.appendChild(ghost);
-      }
-
-      const placedType = placedObjects.get(key);
-      if (placedType) {
-        const placed = document.createElement('div');
-        placed.className = 'object placed';
-        placed.style.backgroundImage = `url('./${objectAssets[placedType]}')`;
-        cell.appendChild(placed);
-      }
-
-      if (currentPosition[0] === row && currentPosition[1] === col) {
-        const hero = document.createElement('div');
-        hero.className = 'hero';
-        hero.style.transform = `rotate(${directionRotation[currentDirection]}deg) scale(1.3)`;
-        cell.appendChild(hero);
-      }
-
+      const cell = document.createElement('div'); cell.className = 'cell';
+      if (sameCell([row, col], level.pickup) && !currentCargo) { const mystery = document.createElement('div'); mystery.className = 'mystery-box'; mystery.textContent = '?'; cell.appendChild(mystery); }
+      for (const color of ['green', 'red']) { if (sameCell([row, col], level[`${color}Box`])) { const box = document.createElement('div'); box.className = `delivery-box ${color}`; box.style.backgroundImage = `url('./${boxAssets[color]}')`; cell.appendChild(box); } }
+      if (sameCell(currentPosition, [row, col])) { const hero = document.createElement('div'); hero.className = 'hero'; hero.style.backgroundImage = `url('./${cargoAssets[currentCargo ?? 'none']}')`; hero.style.transform = `rotate(${directionRotation[currentDirection]}deg) scale(1.25)`; cell.appendChild(hero); }
       board.appendChild(cell);
     }
   }
-
-  levelTitle.textContent = getLevelName(currentLevelIndex);
-  levelProgress.textContent = `${currentLevelIndex + 1} / ${levels.length}`;
-  levelHint.textContent = 'Цель: поставь все объекты на отмеченные клетки.';
-  levelRule.textContent = `Составь программу из ${level.minCommands} команд.`;
-  renderLevelOptions();
+  levelTitle.textContent = getLevelName(currentLevelIndex); levelProgress.textContent = `${currentLevelIndex + 1} / ${levels.length}`; levelHint.textContent = level.hint; levelRule.textContent = 'Команды: движение, повороты, цикл, условие по цвету, взять груз и положить груз.'; renderLevelOptions();
 }
+function resetLevelState() { const level = getCurrentLevel(); currentPosition = [...level.start]; currentDirection = level.direction; currentCargo = null; deliveredCargo = null; renderBoard(); }
+function setLevel(index) { if (index < 0 || index >= levels.length || !isLevelUnlocked(index)) { renderLevelOptions(); return; } currentLevelIndex = index; hideLevelCompleteModal(); resetWorkspace(); resetLevelState(); }
 
-function resetLevelState() {
-  const level = getCurrentLevel();
-  currentPosition = [...level.start];
-  currentDirection = 'right';
-  placedObjects = new Map();
-  renderBoard();
-}
-
-function setLevel(index) {
-  if (index < 0 || index >= levels.length) return;
-  if (!isLevelUnlocked(index)) {
-    renderLevelOptions();
-    return;
-  }
-  currentLevelIndex = index;
-  hideLevelCompleteModal();
-  workspace.updateToolbox(getToolboxForLevel(index));
-  resetWorkspace();
-  resetLevelState();
-}
-
-function flattenProgram(block, commands = []) {
-  let currentBlock = block;
-  while (currentBlock) {
-    switch (currentBlock.type) {
-      case 'maze_move_forward': commands.push({ type: 'move' }); break;
-      case 'maze_turn_left': commands.push({ type: 'turn-left' }); break;
-      case 'maze_turn_right': commands.push({ type: 'turn-right' }); break;
-      case 'maze_place_sun': commands.push({ type: 'place', objectType: 'sun' }); break;
-      case 'maze_place_patch': commands.push({ type: 'place', objectType: 'patch' }); break;
-      case 'maze_place_air': commands.push({ type: 'place', objectType: 'air' }); break;
-      case 'maze_repeat': {
-        const times = Number(currentBlock.getFieldValue('TIMES')) || 0;
-        const nested = flattenProgram(currentBlock.getInputTargetBlock('DO'), []);
-        for (let i = 0; i < times; i += 1) commands.push(...nested);
-        break;
-      }
-      default:
-        break;
-    }
-    currentBlock = currentBlock.getNextBlock();
-  }
-  return commands;
-}
-
-function countProgramCommands(block) {
-  let total = 0;
-  let currentBlock = block;
-  while (currentBlock) {
-    total += 1;
-    if (currentBlock.type === 'maze_repeat') total += countProgramCommands(currentBlock.getInputTargetBlock('DO'));
-    currentBlock = currentBlock.getNextBlock();
-  }
-  return total;
-}
-
-function getExecutionSequence() {
-  const startBlock = workspace.getBlocksByType('maze_start', false)[0];
-  if (!startBlock) return [];
-  return flattenProgram(startBlock.getNextBlock(), []);
-}
-
-function getProgramCommandCount() {
-  const startBlock = workspace.getBlocksByType('maze_start', false)[0];
-  return startBlock ? countProgramCommands(startBlock.getNextBlock()) : 0;
-}
-
-function rotateDirection(direction, turn) {
-  const index = directionOrder.indexOf(direction);
-  const delta = turn === 'turn-left' ? -1 : 1;
-  return directionOrder[(index + delta + 4) % 4];
-}
-
-function isInsideBoard([row, col]) {
-  return row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE;
-}
-
-function showLevelCompleteModal(message, canProceed, title = 'Молодец!') {
-  levelCompleteTitle.hidden = false;
-  levelCompleteTitle.textContent = title;
-  levelCompleteMessage.textContent = message;
-  nextLevelButton.hidden = !canProceed;
-  retryLevelButton.hidden = false;
-  levelCompleteModal.classList.remove('hidden');
-}
-
-function hideLevelCompleteModal() {
-  levelCompleteModal.classList.add('hidden');
-}
-
-function checkWin() {
-  const level = getCurrentLevel();
-  return level.targets.every((target) => placedObjects.get(toKey(target.row, target.col)) === target.type);
-}
-
-async function runProgram() {
-  if (isProgramRunning) return;
-  const sequence = getExecutionSequence();
-  resetLevelState();
-  if (sequence.length === 0) return;
-
-  isProgramRunning = true;
-  runButton.disabled = true;
-
-  try {
-    for (const command of sequence) {
-      await new Promise((resolve) => setTimeout(resolve, 280));
-
-      if (command.type === 'move') {
-        const [dr, dc] = directionVectors[currentDirection];
-        const nextPos = [currentPosition[0] + dr, currentPosition[1] + dc];
-        if (!isInsideBoard(nextPos)) {
-          showLevelCompleteModal('Робот вышел за границы поля 8×8. Попробуй снова.', false, 'Ошибка');
-          return;
-        }
-        currentPosition = nextPos;
-      } else if (command.type === 'turn-left' || command.type === 'turn-right') {
-        currentDirection = rotateDirection(currentDirection, command.type);
-      } else if (command.type === 'place') {
-        placedObjects.set(toKey(currentPosition[0], currentPosition[1]), command.objectType);
-      }
-
-      renderBoard();
-    }
-
-    const programCommands = getProgramCommandCount();
-    const level = getCurrentLevel();
-
-    if (!checkWin()) {
-      showLevelCompleteModal('Не все объекты стоят на нужных местах.', false, 'Почти!');
-      return;
-    }
-
-    if (programCommands > level.minCommands) {
-      showLevelCompleteModal(
-        `Ты решил задачу, но использовал ${programCommands} команд. Нужно ${level.minCommands} или меньше.`,
-        false,
-        'Есть решение короче',
-      );
-      return;
-    }
-
-    markLevelCompleted(currentLevelIndex);
-    renderLevelOptions();
-    const hasNext = currentLevelIndex < levels.length - 1 && isLevelUnlocked(currentLevelIndex + 1);
-    showLevelCompleteModal('Все объекты расставлены правильно!', hasNext, 'Победа!');
-  } finally {
-    isProgramRunning = false;
-    runButton.disabled = false;
-  }
-}
+function commandsFromBlock(block) { const commands = []; let currentBlock = block; while (currentBlock) { const type = currentBlock.type; if (type === 'maze_move_forward') commands.push({ type: 'move' }); else if (type === 'maze_turn_left') commands.push({ type: 'turn-left' }); else if (type === 'maze_turn_right') commands.push({ type: 'turn-right' }); else if (type === 'maze_take_cargo') commands.push({ type: 'take' }); else if (type === 'maze_drop_cargo') commands.push({ type: 'drop' }); else if (type === 'maze_repeat') commands.push({ type: 'repeat', times: Number(currentBlock.getFieldValue('TIMES')) || 0, body: commandsFromBlock(currentBlock.getInputTargetBlock('DO')) }); else if (type === 'maze_if_color') commands.push({ type: 'if', color: currentBlock.getFieldValue('COLOR'), thenBranch: commandsFromBlock(currentBlock.getInputTargetBlock('THEN')), elseBranch: commandsFromBlock(currentBlock.getInputTargetBlock('ELSE')) }); currentBlock = currentBlock.getNextBlock(); } return commands; }
+function getExecutionTree() { const startBlock = workspace.getBlocksByType('maze_start', false)[0]; return startBlock ? commandsFromBlock(startBlock.getNextBlock()) : []; }
+function rotateDirection(direction, turn) { const index = directionOrder.indexOf(direction); return directionOrder[(index + (turn === 'turn-left' ? -1 : 1) + 4) % 4]; }
+function isInsideBoard([row, col]) { return row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE; }
+function showLevelCompleteModal(message, canProceed, title = 'Молодец!') { levelCompleteTitle.textContent = title; levelCompleteMessage.textContent = message; nextLevelButton.hidden = !canProceed; retryLevelButton.hidden = false; levelCompleteModal.classList.remove('hidden'); }
+function hideLevelCompleteModal() { levelCompleteModal.classList.add('hidden'); }
+function fail(message, title = 'Ошибка') { showLevelCompleteModal(message, false, title); throw new Error(message); }
+function checkWin() { const level = getCurrentLevel(); if (!deliveredCargo) return false; return (deliveredCargo === 'green' && sameCell(currentPosition, level.greenBox)) || (deliveredCargo === 'red' && sameCell(currentPosition, level.redBox)); }
+async function pauseAndRender() { renderBoard(); await new Promise((resolve) => setTimeout(resolve, STEP_DELAY)); }
+async function executeCommands(commands) { for (const command of commands) { if (command.type === 'repeat') { for (let i = 0; i < command.times; i += 1) await executeCommands(command.body); continue; } if (command.type === 'if') { await executeCommands(currentCargo === command.color ? command.thenBranch : command.elseBranch); continue; } await pauseAndRender(); const level = getCurrentLevel(); if (command.type === 'move') { const [dr, dc] = directionVectors[currentDirection]; const nextPos = [currentPosition[0] + dr, currentPosition[1] + dc]; if (!isInsideBoard(nextPos)) fail('Робот вышел за границы поля 9×9. Попробуй снова.'); currentPosition = nextPos; } else if (command.type === 'turn-left' || command.type === 'turn-right') currentDirection = rotateDirection(currentDirection, command.type); else if (command.type === 'take') { if (!sameCell(currentPosition, level.pickup)) fail('Груз можно взять только из загадочной коробочки.'); if (currentCargo) fail('У робота уже есть груз.'); currentCargo = Math.random() < 0.5 ? 'green' : 'red'; } else if (command.type === 'drop') { if (!currentCargo) fail('У робота нет груза, который можно положить.'); deliveredCargo = currentCargo; currentCargo = null; } renderBoard(); } }
+async function runProgram() { if (isProgramRunning) return; const commands = getExecutionTree(); resetLevelState(); if (!commands.length) return; isProgramRunning = true; runButton.disabled = true; try { await executeCommands(commands); if (!checkWin()) { showLevelCompleteModal('Груз нужно положить в коробочку такого же цвета.', false, 'Почти!'); return; } markLevelCompleted(currentLevelIndex); renderLevelOptions(); showLevelCompleteModal('Деталь доставлена в правильную коробочку!', currentLevelIndex < levels.length - 1 && isLevelUnlocked(currentLevelIndex + 1), 'Победа!'); } catch (error) { if (!levelCompleteModal.classList.contains('hidden')) return; showLevelCompleteModal(error.message, false, 'Ошибка'); } finally { isProgramRunning = false; runButton.disabled = false; } }
 
 runButton.addEventListener('click', runProgram);
 levelSelect.addEventListener('change', (event) => setLevel(Number(event.target.value)));
 nextLevelButton.addEventListener('click', () => setLevel(Math.min(currentLevelIndex + 1, levels.length - 1)));
-retryLevelButton.addEventListener('click', () => {
-  hideLevelCompleteModal();
-  resetLevelState();
-});
-document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') hideLevelCompleteModal();
-  if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) runProgram();
-});
+retryLevelButton.addEventListener('click', () => { hideLevelCompleteModal(); resetLevelState(); });
+document.addEventListener('keydown', (event) => { if (event.key === 'Escape') hideLevelCompleteModal(); if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) runProgram(); });
 
-loadProgress();
-syncCurrentLevelWithProgress();
-initializeBlockly();
-setLevel(currentLevelIndex);
+loadProgress(); syncCurrentLevelWithProgress(); initializeBlockly(); setLevel(currentLevelIndex);
