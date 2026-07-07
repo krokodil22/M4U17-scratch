@@ -17,19 +17,19 @@ body {
 .app-shell {
   display: grid;
   grid-template-columns: minmax(720px, 1fr) minmax(380px, 540px);
-  gap: 18px;
+  gap: clamp(10px, 1.5vw, 18px);
   min-height: 100vh;
 }
 .panel {
   background: var(--panel);
   border: 1px solid var(--panel-border);
-  padding: 20px;
+  padding: clamp(10px, 2vh, 20px);
   min-height: 0;
 }
-.workspace-panel { display: flex; flex-direction: column; gap: 16px; }
+.workspace-panel { display: flex; flex-direction: column; gap: clamp(8px, 1.8vh, 16px); }
 .workspace-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .run-button {
-  border: 0; border-radius: 999px; padding: 12px 22px; font-size: 18px; font-weight: 700; color: #fff;
+  border: 0; border-radius: 999px; padding: clamp(8px, 1.5vh, 12px) clamp(16px, 2vw, 22px); font-size: clamp(15px, 2vh, 18px); font-weight: 700; color: #fff;
   background: linear-gradient(135deg, var(--accent) 0%, #5b6df9 100%); cursor: pointer;
 }
 .run-button:disabled { opacity: .7; cursor: wait; }
@@ -137,4 +137,16 @@ body {
   font-size: clamp(20px, 4vw, 34px);
   font-weight: 900;
   box-shadow: 0 4px 8px rgba(31, 41, 55, 0.22);
+}
+
+@media (max-height: 720px) and (min-width: 1181px) {
+  body { overflow: hidden; }
+  .workspace-header { min-height: 0; }
+  .blocklyToolboxDiv,
+  .blocklyFlyout { transform-origin: top left; }
+  .blocklyFlyout .blocklyBlockCanvas { transform: scale(.86); transform-origin: 0 0; }
+}
+
+@media (max-height: 600px) and (min-width: 1181px) {
+  .blocklyFlyout .blocklyBlockCanvas { transform: scale(.78); }
 }
