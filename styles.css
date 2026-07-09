@@ -124,19 +124,32 @@ body {
   background-position: center;
   background-repeat: no-repeat;
 }
+.pickup-cargo-box,
 .mystery-box {
   position: absolute;
   inset: 17%;
   z-index: 2;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 10px;
   border: 3px solid #6b7280;
+  box-shadow: 0 4px 8px rgba(31, 41, 55, 0.22);
+}
+.pickup-cargo-box.green {
+  border-color: #5a9908;
+  background: linear-gradient(135deg, #70b812 0%, #5fa108 100%);
+}
+.pickup-cargo-box.red {
+  border-color: #e84357;
+  background: linear-gradient(135deg, #ff4f64 0%, #ed4559 100%);
+}
+.mystery-box {
   background: linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%);
   color: #374151;
   font-size: clamp(20px, 4vw, 34px);
   font-weight: 900;
-  box-shadow: 0 4px 8px rgba(31, 41, 55, 0.22);
+  line-height: 1;
 }
 
 @media (max-height: 720px) and (min-width: 1181px) {
