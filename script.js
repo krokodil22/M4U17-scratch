@@ -145,7 +145,7 @@ function renderBoard() {
       const cell = document.createElement('div'); cell.className = 'cell';
       if (sameCell([row, col], level.pickup) && !pickupTaken) {
         if (level.pickupCargo) {
-          const pickupBox = document.createElement('div'); pickupBox.className = `delivery-box ${level.pickupCargo}`; pickupBox.style.backgroundImage = `url('./${boxAssets[level.pickupCargo]}')`; cell.appendChild(pickupBox);
+          const pickupBox = document.createElement('div'); pickupBox.className = `pickup-cargo-box ${level.pickupCargo}`; cell.appendChild(pickupBox);
         } else {
           const mystery = document.createElement('div'); mystery.className = 'mystery-box'; mystery.textContent = '?'; cell.appendChild(mystery);
         }
