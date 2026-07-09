@@ -14,7 +14,7 @@ const DEBUG_UNLOCK_KEY = 'conditionsTrainerUnlockAll';
 
 const levels = [
   { start: [4, 3], direction: 'right', pickup: [4, 4], pickupCargo: 'green', greenBox: [3, 5], redBox: null, hint: 'Возьми зелёную деталь и доставь её в зелёный финишный ящик.' },
-  { start: [4, 6], direction: 'left', pickup: [4, 5], pickupCargo: 'red', greenBox: null, redBox: [4, 3], hint: 'Возьми красную деталь и доставь её в красный финишный ящик.' },
+  { start: [4, 6], direction: 'left', pickup: [4, 5], pickupCargo: 'red', greenBox: null, redBox: [3, 3], hint: 'Возьми красную деталь и доставь её в красный финишный ящик.' },
   { start: [3, 2], direction: 'right', pickup: [3, 3], greenBox: [1, 5], redBox: [3, 6], hint: 'Зелёная деталь лежит выше, красная — дальше по дороге.' },
   { start: [1, 2], direction: 'right', pickup: [1, 3], greenBox: [1, 5], redBox: [7, 4], hint: 'Одна ветка короткая, другая ведёт вниз по длинной дороге.' },
   { start: [7, 5], direction: 'up', pickup: [6, 5], greenBox: [2, 4], redBox: [4, 6], hint: 'На развилке доставь деталь в ящик её цвета.' },
